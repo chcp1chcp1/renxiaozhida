@@ -1,0 +1,565 @@
+/* ========== 基础 ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --clay-red: #d9483a;
+  --clay-red-dark: #b8352a;
+  --clay-blue: #2b7de9;
+  --clay-cream: #f6ead2;
+  --clay-ink: #4a3227;
+  --clay-yellow: #f5c343;
+  --font-clay: "ZCOOL KuaiLe", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #efe6d8;
+  font-family: var(--font-clay);
+  color: var(--clay-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { width: 100%; height: 100%; position: relative; }
+
+.scene {
+  position: absolute; inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .5s ease;
+}
+.scene.active { opacity: 1; pointer-events: auto; }
+
+/* ========== 电脑桌面场景：完整黏土场景图（蓝天+棋盘格地板+电脑）全屏覆盖 ========== */
+#scene-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #79c7f0; /* 图片未加载时的天空色兜底 */
+}
+
+.stage {
+  position: relative;
+  z-index: 1;
+  width: max(100vw, calc(100vh * 1659 / 948)); /* cover：铺满视口，超出裁边 */
+  aspect-ratio: 1659 / 948;
+  flex: none;
+  user-select: none;
+  animation: idle-bob 4.5s ease-in-out infinite;
+  transform-origin: 50% 100%;
+  container-type: inline-size;
+}
+
+.computer-img {
+  width: 100%; height: 100%;
+  display: block;
+  filter: drop-shadow(0 18px 30px rgba(90, 50, 30, .25));
+}
+
+@keyframes idle-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-5px) rotate(-.3deg); }
+  65% { transform: translateY(2px) rotate(.25deg); }
+}
+
+/* 被按压时整台电脑的黏土晃动 */
+.stage.pressing {
+  animation: none;
+  transform: scale(.995) rotate(.4deg);
+  transition: transform .12s ease-out;
+}
+
+/* 图标精灵层：独立透明底黏土 PNG，支持独立缩放 */
+.icon-sprite {
+  position: absolute;
+  pointer-events: none;
+  transition: transform .22s cubic-bezier(.34, 1.56, .64, 1);
+  will-change: transform;
+}
+.icon-sprite.hover { transform: scale(1.09); }
+.icon-sprite.pressing {
+  transform: scale(.93);
+  transition-duration: .1s;
+}
+
+/* 图片型图标精灵：透明 PNG */
+.icon-sprite.is-img img {
+  width: 100%;
+  display: block;
+  filter: drop-shadow(0 6px 8px rgba(20, 50, 90, .25));
+}
+/* 统一图标文字标签：手绘黏土风，四个图标同款，独立于图案下方 */
+.icon-label {
+  position: absolute;
+  transform: translateX(-50%);
+  color: #fff6e8;
+  font-family: var(--font-clay); /* ZCOOL KuaiLe 手绘感 */
+  font-size: 2.1cqw;
+  letter-spacing: .12em;
+  text-shadow: 0 2px 0 rgba(10, 60, 120, .55), 0 5px 10px rgba(8, 45, 95, .4);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 进入 ReelLog 的暗场转场 */
+.rl-fade-transition {
+  position: fixed; inset: 0;
+  background: #17140f;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .38s ease, visibility 0s linear .45s;
+  z-index: 60;
+}
+.rl-fade-transition.on {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity .38s ease, visibility 0s;
+}
+
+/* 图标热区 */
+.hotspot {
+  position: absolute;
+  cursor: pointer;
+  border-radius: 18px;
+  -webkit-tap-highlight-color: transparent;
+}
+.hotspot::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
+  transition: box-shadow .12s ease-out;
+}
+/* 黏土指压凹痕 */
+.hotspot.pressing::after {
+  box-shadow: inset 0 6px 18px rgba(40, 20, 10, .35),
+              inset 0 -2px 6px rgba(255,255,255,.25);
+}
+/* 选中的图标光晕（仅点击进入时） */
+.hotspot.glow::after {
+  box-shadow: inset 0 0 0 4px rgba(245, 195, 67, .9),
+              0 0 34px rgba(245, 195, 67, .85);
+}
+
+/* 调试模式：显示热区轮廓 */
+.debug .hotspot { outline: 2px dashed rgba(255,0,0,.7); }
+
+/* 进入故事：白光转场 */
+.enter-transition {
+  position: fixed; inset: 0;
+  background: var(--clay-blue);
+  clip-path: circle(0% at 50% 50%);
+  pointer-events: none;
+  visibility: hidden;
+  z-index: 50;
+}
+.enter-transition.white { background: #ffffff; }
+.enter-transition.expanding {
+  clip-path: circle(150% at var(--ox, 50%) var(--oy, 50%));
+  visibility: visible;
+  transition: clip-path .95s cubic-bezier(.55, 0, .75, .35);
+}
+.enter-transition.white.expanding {
+  transition-duration: .65s;
+  transition-timing-function: cubic-bezier(.45, 0, .6, .5);
+}
+.enter-transition.fading {
+  opacity: 0;
+  visibility: visible;
+  transition: opacity .9s ease .05s;
+}
+
+/* 未读角标：黏土小圆点，贴在信封图标右上角、屏幕边框之内 */
+.mail-badge {
+  position: absolute;
+  left: 62.9%; top: 43.4%;
+  width: 2.7%;
+  aspect-ratio: 1;
+  border-radius: 48% 52% 55% 45% / 52% 48% 52% 48%;
+  background: var(--clay-red);
+  color: #fff6e8;
+  border: 2.5px solid var(--clay-cream);
+  font-family: var(--font-clay);
+  font-size: 1.7cqw;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 3px 0 var(--clay-red-dark), 0 6px 10px rgba(60, 30, 15, .3);
+  animation: badge-pop .5s cubic-bezier(.34, 1.56, .64, 1), badge-bounce 1.6s ease-in-out .5s infinite;
+  z-index: 5;
+  pointer-events: none;
+}
+@keyframes badge-pop {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+@keyframes badge-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14%); }
+}
+
+/* 邮件图标未读提醒：轻微摇摆 */
+.icon-sprite.notify {
+  animation: sprite-nudge 1.4s ease-in-out infinite;
+}
+@keyframes sprite-nudge {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.05) rotate(1.6deg); }
+  75% { transform: scale(1.05) rotate(-1.6deg); }
+}
+
+/* ========== 弹窗（磁带/邮件）：纸面档案风 ========== */
+.modal-mask {
+  position: absolute; inset: 0;
+  background: rgba(23, 18, 13, .5);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .28s ease;
+  z-index: 40;
+}
+.modal-mask.open { opacity: 1; pointer-events: auto; }
+
+.clay-window {
+  width: min(540px, 86vw);
+  background: #faf7ef;
+  border-radius: 6px;
+  box-shadow: 0 30px 70px rgba(23, 18, 13, .38);
+  overflow: hidden;
+  transform: translateY(18px);
+  transition: transform .32s cubic-bezier(.22, .9, .3, 1);
+  font-family: "EB Garamond", "Noto Serif SC", serif;
+  color: #1c1812;
+}
+.modal-mask.open .clay-window { transform: translateY(0); }
+
+.clay-window .win-title {
+  background: #f1ebdd;
+  color: #1c1812;
+  padding: 15px 22px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.win-close {
+  border: none;
+  background: none;
+  color: #6b6152;
+  font-size: 17px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color .15s ease;
+}
+.win-close:hover { color: #1c1812; }
+
+.clay-window .win-body {
+  padding: 26px 28px 30px;
+  font-size: 16px;
+  line-height: 1.9;
+  text-align: left;
+}
+.win-body .win-note {
+  font-size: 13px;
+  color: #8b8172;
+  letter-spacing: 1px;
+}
+.win-icon { font-size: 40px; line-height: 1; margin-bottom: 12px; text-align: center; }
+.win-body > p { text-align: center; }
+.win-body > .win-note { display: block; text-align: center; margin-top: 10px; }
+
+/* 信件（邮件模块） */
+.letter {
+  background: #fffefb;
+  border: 1px solid #e6ddc8;
+  border-radius: 4px;
+  padding: 24px 28px 20px;
+  line-height: 2.05;
+  letter-spacing: .02em;
+}
+.letter-meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ece4d0;
+  font-size: 12.5px;
+  letter-spacing: 2px;
+  color: #8b8172;
+}
+.letter .letter-sign { text-align: right; margin-top: 14px; color: #4a4234; }
+
+/* 信件动作区与按钮 */
+.mail-actions {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 18px;
+  margin-top: 22px;
+}
+.btn-mail {
+  border: none;
+  background: #17140f;
+  color: #f3eee2;
+  font-family: inherit;
+  font-size: 15px;
+  letter-spacing: 4px;
+  padding: 12px 34px 12px 38px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background .18s ease;
+}
+.btn-mail:hover { background: #b43a1b; }
+
+/* ========== 故事场景（四幕剧情引擎） ========== */
+#scene-story { background: #1a120c; }
+
+.story-stage { position: absolute; inset: 0; }
+
+/* 场景主图：双图叠放，渐变切换 */
+.story-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.4s ease, filter 1.6s ease;
+}
+.story-img.visible { opacity: 1; }
+
+/* 道具叠加层（水桶 / 灌溉工具） */
+.prop-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.prop-img {
+  position: absolute;
+  opacity: 0;
+  transform: translateY(26px) scale(.82);
+  transition: opacity .6s ease, transform .7s cubic-bezier(.34, 1.56, .64, 1), filter .3s;
+}
+.prop-img.in { opacity: 1; transform: none; }
+.prop-bucket { width: 20%; right: 18%; bottom: 13%; }
+.prop-bucket.tilt { transform: rotate(-36deg) translate(-8%, 8%); transition: transform .6s ease; }
+/* 灌溉工具：画面正中 */
+.prop-pump { width: 34%; left: 50%; margin-left: -17%; bottom: 12%; }
+.prop-img.clickable { pointer-events: auto; cursor: pointer; animation: prop-pulse 1.5s ease-in-out infinite; }
+@keyframes prop-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 220, 120, 0)); }
+  50% { filter: drop-shadow(0 0 18px rgba(255, 220, 120, .9)); }
+}
+.prop-img.working { animation: pump-work .9s ease-in-out infinite; }
+@keyframes pump-work {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-1.4%) rotate(-1.2deg); }
+  70% { transform: translateY(.5%) rotate(.8deg); }
+}
+
+/* 底部文字层与选择按钮（简洁，无卡片堆叠） */
+.story-ui {
+  position: absolute;
+  left: 50%; bottom: 5%;
+  transform: translateX(-50%);
+  width: min(720px, 88vw);
+  text-align: center;
+  z-index: 10;
+}
+.story-line {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .5s ease, transform .5s ease;
+  color: #fff8ec;
+  font-size: clamp(16px, 2vw, 21px);
+  line-height: 1.9;
+  letter-spacing: 2px;
+  margin: .15em 0;
+  text-shadow: 0 2px 10px rgba(40, 20, 10, .6), 0 0 3px rgba(40, 20, 10, .5);
+}
+.story-line.in { opacity: 1; transform: none; }
+.story-line.question { margin-top: .7em; font-weight: 700; letter-spacing: 4px; }
+
+.story-choices {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.choice-btn {
+  opacity: 0;
+  transform: translateY(14px) scale(.9);
+  transition: opacity .4s ease, transform .4s cubic-bezier(.34, 1.56, .64, 1),
+              box-shadow .1s ease;
+}
+.choice-btn.in { opacity: 1; transform: none; }
+
+/* 黏土按钮：红土色圆胖按钮 + 奶油字 + 快乐标题字体 */
+.btn-clay {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 14px 38px;
+  border: none;
+  border-radius: 999px;
+  background: var(--clay-red);
+  color: #fff6e8;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  font-family: var(--font-clay);
+  cursor: pointer;
+  box-shadow: 0 5px 0 var(--clay-red-dark), 0 12px 20px rgba(60, 30, 15, .28),
+              inset 0 2px 0 rgba(255, 255, 255, .3);
+  transition: transform .1s, box-shadow .1s, filter .2s;
+}
+.btn-clay:hover { filter: brightness(1.07); }
+.btn-clay:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--clay-red-dark), 0 4px 8px rgba(60, 30, 15, .25);
+}
+
+/* 写给英江的信：逐渐展开 */
+.story-letter {
+  position: absolute;
+  left: 50%; top: 44%;
+  width: min(480px, 86vw);
+  transform: translate(-50%, -50%) scaleY(.1);
+  transform-origin: top center;
+  opacity: 0;
+  transition: transform 1.7s cubic-bezier(.3, .9, .3, 1), opacity .5s ease;
+  z-index: 12;
+}
+.story-letter.unfold { opacity: 1; transform: translate(-50%, -50%) scaleY(1); }
+
+/* 稻穗点击热区（呼吸光圈提示） */
+.ear-hotspot {
+  position: absolute;
+  left: 50%; top: 52%;
+  transform: translate(-50%, -50%);
+  width: 36%; height: 42%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 8;
+}
+.ear-hotspot::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 236, 170, .3), transparent 65%);
+  animation: ear-breathe 1.8s ease-in-out infinite;
+}
+@keyframes ear-breathe {
+  0%, 100% { transform: scale(.92); opacity: .7; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+/* 过曝白色闪光 */
+.flash {
+  position: absolute; inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity 1.6s ease;
+}
+.flash.exposing { opacity: .55; }
+.flash.full { opacity: 1; transition-duration: .5s; }
+
+.btn-exit { z-index: 15; }
+
+
+/* ========== 搜索场景：白色极简 ========== */
+#scene-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #1b1712;
+  font-family: "EB Garamond", "Noto Serif SC", "Songti SC", serif;
+  transition: opacity .38s ease;
+}
+#scene-search.leaving { opacity: 0; }
+
+.search-back {
+  position: absolute;
+  top: 24px; left: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #6f675c;
+  font-family: inherit;
+  font-size: 15px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  opacity: .8;
+  transition: opacity .2s ease;
+  z-index: 5;
+}
+.search-back:hover { opacity: 1; }
+.search-back svg { display: none; }
+.search-back::before { content: "← "; }
+
+.search-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  width: min(560px, 86vw);
+}
+
+/* 极简搜索栏：仅一条下划线 */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 2px 12px;
+  border-bottom: 1px solid #c9c2b8;
+  transition: border-color .25s ease;
+}
+#scene-search.searching .search-bar,
+.search-bar:focus-within { border-bottom-color: #1b1712; }
+.search-bar svg { flex: none; opacity: .55; }
+.search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: #1b1712;
+  caret-color: #1b1712;
+}
+.search-bar input::placeholder { color: #b3aa9c; }
+
+/* 唯一搜索结果：纯文字行 */
+.search-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: opacity .45s ease, transform .45s ease;
+}
+#scene-search.found .search-result {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.search-result .sr-title {
+  font-size: 21px;
+  letter-spacing: 1px;
+  color: #1b1712;
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s ease;
+}
+.search-result:hover .sr-title { border-bottom-color: #1b1712; }
+.search-result .sr-sub {
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #8a8172;
+}
