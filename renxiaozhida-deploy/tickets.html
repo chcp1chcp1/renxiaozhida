@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人小志大 · 电影票空间</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; }
+  body {
+    background: #d4c9a8;
+    font-family: "EB Garamond", "Noto Serif SC", "Songti SC", serif;
+    /* 滚动跑道：滚动进度驱动整个 3D 动画 */
+    height: 560vh;
+    overscroll-behavior: none;
+  }
+  /* 粒子尘埃 + 暖色块背景（canvas，位于 WebGL 场景之下） */
+  #bg-particles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  #stage3d {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+  }
+  #stage3d canvas { display: block; }
+
+  /* 返回链接：极简文字样式 */
+  .tk-back {
+    position: fixed;
+    top: 24px; left: 28px;
+    z-index: 10;
+    color: #5c4a38;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-decoration: none;
+    opacity: .75;
+    transition: opacity .2s ease;
+  }
+  .tk-back:hover { opacity: 1; }
+
+  /* 开场滚动提示：简约衬线 */
+  .tk-hint {
+    position: fixed;
+    left: 50%; bottom: 6.5%;
+    transform: translateX(-50%);
+    z-index: 10;
+    color: #6b5a48;
+    font-size: 16px;
+    letter-spacing: 3px;
+    text-align: center;
+    transition: opacity .6s ease;
+    pointer-events: none;
+    animation: hint-breathe 2.6s ease-in-out infinite;
+  }
+  @keyframes hint-breathe {
+    0%, 100% { opacity: .55; }
+    50% { opacity: 1; }
+  }
+  body.scrolled .tk-hint { opacity: 0; animation: none; }
+
+  /* 加载遮罩：纯文字 */
+  .tk-loading {
+    position: fixed; inset: 0;
+    z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    background: #d4c9a8;
+    transition: opacity .7s ease;
+  }
+  .tk-loading.done { opacity: 0; pointer-events: none; }
+  .tk-loading span {
+    color: #6b5a48;
+    font-size: 17px;
+    letter-spacing: 4px;
+    animation: hint-breathe 1.8s ease-in-out infinite;
+  }
+
+  /* 放映机：滚动末段登场，点击放映 */
+  .tk-projector {
+    position: fixed;
+    left: 50%; top: 52%;
+    z-index: 9;
+    width: min(760px, 72vw);
+    transform: translate(-50%, -50%) translateY(26px) scale(.94);
+    opacity: 0;
+    pointer-events: none;
+    filter: drop-shadow(0 18px 24px rgba(60, 45, 25, .28));
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .tk-projector.ready { pointer-events: auto; }
+  .tk-projector:hover { filter: drop-shadow(0 22px 28px rgba(60, 45, 25, .34)); }
+
+  /* 放映提示 */
+  .tk-proj-hint {
+    position: fixed;
+    left: 50%; bottom: 6.5%;
+    transform: translateX(-50%);
+    z-index: 9;
+    color: #6b5a48;
+    font-size: 16px;
+    letter-spacing: 3px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .6s ease;
+  }
+
+  /* 视频放映弹窗 */
+  .tk-video-modal {
+    position: fixed; inset: 0;
+    z-index: 30;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(16, 13, 10, .92);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .45s ease;
+  }
+  .tk-video-modal.open { opacity: 1; pointer-events: auto; }
+  .tk-video-box {
+    width: min(960px, 88vw);
+  }
+  .tk-video-box video {
+    width: 100%;
+    max-height: 76vh;
+    background: #000;
+    display: block;
+  }
+  .tk-video-note {
+    margin-top: 14px;
+    text-align: center;
+    color: #a99f8d;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .tk-video-close {
+    position: absolute;
+    top: 24px; right: 30px;
+    border: none;
+    background: none;
+    color: #cfc6b8;
+    font-family: inherit;
+    font-size: 16px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    opacity: .8;
+    transition: opacity .2s ease;
+  }
+  .tk-video-close:hover { opacity: 1; }
+
+  /* 调试：?p=0.5 固定进度截图模式 */
+  body.fixed-progress { height: 100vh; overflow: hidden; }
+</style>
+</head>
+<body>
+<canvas id="bg-particles"></canvas>
+<div id="stage3d"></div>
+<a class="tk-back" href="index.html">← 返回</a>
+<div class="tk-hint">滚动，进入票匣</div>
+<img class="tk-projector" src="assets/ui/projector.png" alt="电影放映机" draggable="false">
+<div class="tk-proj-hint">点击放映机，开始放映</div>
+<div class="tk-video-modal" role="dialog" aria-label="影片放映">
+  <button class="tk-video-close" type="button">关闭 ✕</button>
+  <div class="tk-video-box">
+    <video controls playsinline preload="metadata" src="assets/video/film.mp4"></video>
+    <div class="tk-video-note">人小志大 · 1959 · 浙江电影制片厂</div>
+  </div>
+</div>
+<div class="tk-loading"><span>正在取票…</span></div>
+<script src="lib/gsap.min.js"></script>
+<script src="lib/ScrollTrigger.min.js"></script>
+<script>
+/* ===== 背景：尘埃粒子 + 暖色模糊块 + 暗角（canvas 2D，位于 3D 场景之下） ===== */
+(function () {
+  const canvas = document.getElementById("bg-particles");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const BG_COLOR = "#d4c9a8";   // 与页面底色一致
+  const PARTICLE_COUNT = 90;    // 粒子总数
+  const DUST_COUNT = 40;        // 远景尘埃
+
+  let W, H;
+  function resize() {
+    W = canvas.width = innerWidth * devicePixelRatio;
+    H = canvas.height = innerHeight * devicePixelRatio;
+    canvas.style.width = innerWidth + "px";
+    canvas.style.height = innerHeight + "px";
+  }
+  resize();
+  addEventListener("resize", resize);
+
+  class Particle {
+    constructor(zLayer) {
+      this.z = zLayer; // "far" | "mid" | "near"
+      const cfg = {
+        far:  { rMin: 0.8, rMax: 3,   vMax: 0.3, blur: 2.5, alphaMax: 0.35 },
+        mid:  { rMin: 1.8, rMax: 5,   vMax: 0.6, blur: 0.8, alphaMax: 0.65 },
+        near: { rMin: 3,   rMax: 9,   vMax: 1.0, blur: 0,   alphaMax: 0.90 }
+      }[this.z];
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      this.r = cfg.rMin + Math.random() * (cfg.rMax - cfg.rMin);
+      this.vx = (Math.random() - 0.5) * cfg.vMax;
+      this.vy = -Math.random() * cfg.vMax * 0.6 - 0.08; // 整体微微上升
+      this.ph = Math.random() * Math.PI * 2;
+      this.speed = 0.3 + Math.random() * 0.7;
+      const palette = ["255,248,220", "255,230,160", "255,240,200", "240,220,255", "255,200,180"];
+      this.color = palette[Math.floor(Math.random() * palette.length)];
+      this.blur = cfg.blur;
+      this.alphaMax = cfg.alphaMax;
+      this.alpha = Math.random() * cfg.alphaMax;
+      this.alphaDir = 1;
+      this.flickerSpeed = 0.008 + Math.random() * 0.018;
+    }
+    update(t) {
+      this.x += this.vx * this.speed;
+      this.y += this.vy * this.speed + Math.sin(t * 0.001 + this.ph) * 0.15;
+      this.alpha += this.flickerSpeed * this.alphaDir;
+      if (this.alpha > this.alphaMax) this.alphaDir = -1;
+      if (this.alpha < 0.04) this.alphaDir = 1;
+      const pad = this.r * 4;
+      if (this.x < -pad) this.x += W + pad * 2;
+      if (this.x > W + pad) this.x -= W + pad * 2;
+      if (this.y < -pad) this.y += H + pad * 2;
+      if (this.y > H + pad) this.y -= H + pad * 2;
+    }
+    draw(ctx) {
+      ctx.save();
+      if (this.blur > 0) ctx.filter = `blur(${this.blur}px)`;
+      ctx.globalAlpha = this.alpha;
+      const grd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 2.5);
+      grd.addColorStop(0, `rgba(${this.color}, 1)`);
+      grd.addColorStop(0.4, `rgba(${this.color}, 0.3)`);
+      grd.addColorStop(1, `rgba(${this.color}, 0)`);
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  class Blob {
+    constructor() {
+      this.x = Math.random() * innerWidth * devicePixelRatio;
+      this.y = Math.random() * innerHeight * devicePixelRatio;
+      this.r = 80 + Math.random() * 260;
+      this.vx = (Math.random() - 0.5) * 0.2;
+      this.vy = (Math.random() - 0.5) * 0.15;
+      this.ph = Math.random() * Math.PI * 2;
+      const hue = 30 + Math.random() * 30; // 暖黄到橙
+      this.color = `hsla(${hue}, 35%, 72%, ${0.12 + Math.random() * 0.10})`;
+    }
+    update(t) {
+      this.x += this.vx + Math.sin(t * 0.0005 + this.ph) * 0.08;
+      this.y += this.vy + Math.cos(t * 0.0007 + this.ph) * 0.06;
+      const wW = innerWidth * devicePixelRatio, wH = innerHeight * devicePixelRatio;
+      if (this.x < -this.r * 2) this.x += wW + this.r * 4;
+      if (this.x > wW + this.r * 2) this.x -= wW + this.r * 4;
+      if (this.y < -this.r * 2) this.y += wH + this.r * 4;
+      if (this.y > wH + this.r * 2) this.y -= wH + this.r * 4;
+    }
+    draw(ctx) {
+      ctx.save();
+      ctx.filter = `blur(${60 + this.r * 0.4}px)`;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      const n = 6;
+      for (let i = 0; i <= n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const rr = this.r * (0.85 + 0.15 * Math.sin(a * 3 + this.ph));
+        const px = this.x + Math.cos(a) * rr;
+        const py = this.y + Math.sin(a) * rr;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  const particles = [];
+  const blobs = [];
+  for (let i = 0; i < DUST_COUNT; i++) particles.push(new Particle("far"));
+  for (let i = 0; i < PARTICLE_COUNT * 0.45 | 0; i++) particles.push(new Particle("mid"));
+  for (let i = 0; i < PARTICLE_COUNT * 0.25 | 0; i++) particles.push(new Particle("near"));
+  for (let i = 0; i < 7; i++) blobs.push(new Blob());
+
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function drawBg(t) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, W, H);
+    for (const b of blobs) { b.update(t); b.draw(ctx); }
+    for (const layer of ["far", "mid", "near"]) {
+      for (const p of particles) {
+        if (p.z !== layer) continue;
+        p.update(t);
+        p.draw(ctx);
+      }
+    }
+    // 暗角：聚焦画面中心
+    const vig = ctx.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.85);
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(0,0,0,0.18)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+    if (!reduced) requestAnimationFrame(drawBg);
+  }
+  requestAnimationFrame(drawBg);
+})();
+</script>
+<script type="module" src="js/tickets.js?v=20261111b"></script>
+</body>
+</html>

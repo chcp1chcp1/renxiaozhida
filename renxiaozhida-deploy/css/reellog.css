@@ -1,0 +1,511 @@
+/* ============================================================
+   ReelLog · 《人小志大》电影档案评分页
+   方向：The split stage（分割舞台）— 左：固定海报舞台；右：滚动档案
+   配色：取自海报与胶片 —— 档案纸 / 胶片黑 / 朱砂红
+   字体：EB Garamond（西文）+ Noto Serif SC（中文）
+   ============================================================ */
+
+#scene-reellog {
+  --rl-paper: #f0ede6;
+  --rl-paper2: #e7e3d8;
+  --rl-ink: #211d17;
+  --rl-muted: #6e6558;
+  --rl-accent: #b43a1b;
+  --rl-field: #17140f;
+  --rl-field-ink: #f2ecdf;
+  --rl-step-small: 0.8125rem;
+  --rl-step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --rl-step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
+  --rl-step-head: clamp(2rem, 1.3rem + 3.2vw, 3.5rem);
+
+  background: var(--rl-paper);
+  color: var(--rl-ink);
+  font-family: "EB Garamond", "Noto Serif SC", "Songti SC", serif;
+  font-size: var(--rl-step-body);
+  line-height: 1.55;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.rl-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 47% 53%;
+  min-height: 100%;
+  align-items: start;
+}
+
+/* ---------- 左：固定海报舞台（sticky，整页常驻） ---------- */
+.rl-stage-panel {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background: var(--rl-field);
+  color: var(--rl-field-ink);
+  overflow: hidden;
+}
+.rl-poster-btn {
+  position: absolute;
+  inset: 20px 20px 168px 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  display: block;
+}
+.rl-poster-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rl-poster-btn:hover img { transform: scale(1.015); }
+.rl-poster-btn:focus-visible { outline: 2px solid var(--rl-field-ink); outline-offset: 4px; }
+.rl-poster-hint {
+  position: absolute;
+  left: 24px;
+  bottom: 148px;
+  font-size: var(--rl-step-small);
+  color: rgba(240, 237, 230, 0.55);
+  pointer-events: none;
+}
+
+/* 大字标：位于首屏底部海报舞台上，随滚动离场（非常驻） */
+.rl-wordmark {
+  position: absolute;
+  top: calc(100vh - 148px);
+  left: 24px;
+  margin: 0;
+  font-weight: 500;
+  font-size: clamp(56px, 7.2vw, 118px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--rl-paper);
+  z-index: 6;
+  transform-origin: left bottom;
+  will-change: transform;
+}
+.rl-wordmark .rl-year {
+  font-size: 0.22em;
+  font-weight: 400;
+  vertical-align: 0.5em;
+  margin-left: 0.4em;
+}
+.rl-wordmark-sub {
+  position: absolute;
+  top: calc(100vh - 34px);
+  left: 26px;
+  margin: 0;
+  font-size: 15px;
+  color: rgba(240, 237, 230, 0.62);
+  z-index: 6;
+}
+
+/* ---------- 右：档案列（自然流，随场景滚动） ---------- */
+/* 出血几何：右列 = 47vw 起、53vw 宽；文本尺度 46ch 居中。
+   出血块 margin = 23ch - 26.5vw 恰好从接缝起到右缘（留 20px  gutter 呼应左侧海报 20px inset） */
+.rl-inner {
+  max-width: 46ch;
+  margin-inline: auto;
+  padding: 28px 0 96px;
+}
+
+/* 导航：从接缝拉通至右缘 gutter，末项贴近右缘 */
+.rl-nav {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  font-size: 15px;
+  padding-bottom: 20px;
+  margin-left: calc((100% - 53vw) / 2);
+  margin-right: calc((100% - 53vw) / 2 + 20px);
+}
+.rl-nav .rl-brand {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-right: auto;
+  font-size: 17px;
+}
+.rl-nav a {
+  color: var(--rl-ink);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.rl-nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.rl-nav a.rl-back { color: var(--rl-accent); }
+
+/* 首屏支持句 */
+.rl-lede {
+  min-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+}
+.rl-lede p {
+  font-size: var(--rl-step-lead);
+  line-height: 1.7;
+  max-width: 26ch;
+  margin: 0;
+}
+.rl-cta {
+  display: inline-block;
+  background: var(--rl-ink);
+  color: var(--rl-paper);
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 500;
+  padding: 13px 30px;
+  min-height: 44px;
+  box-sizing: border-box;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+.rl-cta:hover { background: var(--rl-accent); }
+.rl-cta:active { transform: translateY(2px); }
+.rl-cta:focus-visible { outline: 2px solid var(--rl-accent); outline-offset: 3px; }
+
+/* 章节通用 */
+.rl-section { margin-top: 120px; }
+.rl-section h2 {
+  font-size: var(--rl-step-head);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin: 0 0 36px;
+}
+.rl-section .rl-note {
+  color: var(--rl-muted);
+  font-size: 15px;
+  margin: -24px 0 28px;
+}
+.rl-section p { margin: 0 0 1em; }
+
+/* 入场动画（JS 加 .rl-in） */
+.rl-anim {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rl-anim.rl-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rl-anim { opacity: 1; transform: none; transition: none; }
+}
+
+/* 电影信息：两端对齐资料行 */
+.rl-meta { margin: 40px 0 48px; }
+.rl-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 7px 0;
+}
+.rl-meta-row dt { color: var(--rl-muted); font-size: 15px; white-space: nowrap; }
+.rl-meta-row dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 剧照：混排拖拽横排（胶片条），从接缝出血至右缘 gutter */
+#rl-stills { max-width: none; }
+.rl-filmstrip-wrap {
+  margin-left: calc((100% - 53vw) / 2);
+  margin-right: calc((100% - 53vw) / 2 + 20px);
+  overflow: hidden;
+}
+.rl-filmstrip {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 4px 40px 18px calc(26.5vw - 23ch);
+  cursor: grab;
+  scrollbar-width: none;
+}
+.rl-filmstrip::-webkit-scrollbar { display: none; }
+.rl-filmstrip.dragging { cursor: grabbing; scroll-snap-type: none; }
+.rl-mod { flex: none; scroll-snap-align: start; }
+.rl-mod figure {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rl-still-btn {
+  padding: 0;
+  border: none;
+  background: var(--rl-paper2);
+  cursor: zoom-in;
+  display: block;
+  overflow: hidden;
+}
+.rl-still-btn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rl-still-btn:hover img { transform: scale(1.03); }
+.rl-still-btn:focus-visible { outline: 2px solid var(--rl-accent); outline-offset: 3px; }
+.rl-mod-tall .rl-still-btn { height: 52vh; aspect-ratio: 500 / 721; }
+.rl-mod-wide .rl-still-btn { height: 52vh; aspect-ratio: 5 / 4; }
+.rl-mod-stack figure { height: 52vh; }
+.rl-mod-stack .rl-still-btn { height: calc(50% - 7px); aspect-ratio: auto; }
+.rl-mod-stack .rl-still-btn img { aspect-ratio: 5 / 4; }
+.rl-strip-hint {
+  font-size: var(--rl-step-small);
+  color: var(--rl-muted);
+  margin-top: 10px;
+}
+
+/* 评分：胶片黑域，从接缝出血至右缘 gutter，打破右列节奏 */
+.rl-ratings-field {
+  background: var(--rl-field);
+  color: var(--rl-field-ink);
+  margin-left: calc((100% - 53vw) / 2);
+  margin-right: calc((100% - 53vw) / 2 + 20px);
+  padding: 72px calc(26.5vw - 23ch - 20px) 80px calc(26.5vw - 23ch);
+}
+.rl-ratings-field h2 { color: var(--rl-field-ink); }
+.rl-avg-row {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+.rl-avg {
+  font-size: clamp(64px, 6vw, 96px);
+  line-height: 1;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.rl-avg-side { color: rgba(242, 236, 223, 0.6); font-size: 15px; }
+.rl-stars {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.rl-star {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  line-height: 0;
+}
+.rl-star svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rl-star path {
+  fill: transparent;
+  stroke: rgba(242, 236, 223, 0.45);
+  stroke-width: 1.5;
+  transition: fill 0.16s ease, stroke 0.16s ease;
+}
+.rl-star.lit path { fill: var(--rl-accent); stroke: var(--rl-accent); }
+.rl-star:hover svg { transform: scale(1.18) rotate(-6deg); }
+.rl-star:focus-visible { outline: 2px solid var(--rl-field-ink); outline-offset: 2px; border-radius: 4px; }
+.rl-rate-label { font-size: var(--rl-step-lead); min-height: 1.6em; margin: 0; }
+.rl-rate-label .rl-rate-word { color: var(--rl-accent); font-weight: 500; }
+.rl-rate-count { color: rgba(242, 236, 223, 0.6); font-size: 15px; margin-top: 10px; }
+
+/* 评论 */
+.rl-composer { margin-bottom: 48px; }
+.rl-composer textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: none;
+  background: var(--rl-paper2);
+  color: var(--rl-ink);
+  font: inherit;
+  padding: 16px 18px;
+  box-sizing: border-box;
+  transition: background 0.2s ease;
+}
+.rl-composer textarea:focus {
+  outline: 2px solid var(--rl-ink);
+  outline-offset: -2px;
+  background: var(--rl-paper);
+}
+.rl-composer textarea::placeholder { color: var(--rl-muted); }
+.rl-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  gap: 16px;
+}
+.rl-composer-hint { font-size: var(--rl-step-small); color: var(--rl-muted); }
+.rl-send {
+  appearance: none;
+  border: none;
+  background: var(--rl-ink);
+  color: var(--rl-paper);
+  font: inherit;
+  font-weight: 500;
+  padding: 10px 30px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease, opacity 0.2s ease;
+}
+.rl-send:hover { background: var(--rl-accent); }
+.rl-send:active { transform: translateY(2px); }
+.rl-send:disabled { opacity: 0.35; cursor: not-allowed; }
+.rl-send:focus-visible { outline: 2px solid var(--rl-accent); outline-offset: 2px; }
+
+.rl-review-list { list-style: none; margin: 0; padding: 0; }
+.rl-review {
+  padding: 26px 0;
+  border-top: 2px solid var(--rl-ink);
+  animation: rl-review-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rl-review:first-child { border-top: none; padding-top: 0; }
+@keyframes rl-review-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+.rl-review-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+.rl-review-stars { display: inline-flex; gap: 3px; align-items: center; }
+.rl-review-none { color: var(--rl-muted); font-size: 13px; }
+.rl-mini-star { width: 15px; height: 15px; }
+.rl-mini-star path { fill: transparent; stroke: var(--rl-muted); stroke-width: 1.5; }
+.rl-mini-star.lit path { fill: var(--rl-accent); stroke: var(--rl-accent); }
+.rl-review-time { color: var(--rl-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rl-review-text { margin: 0; overflow-wrap: break-word; }
+.rl-empty { color: var(--rl-muted); padding: 12px 0 32px; }
+
+/* 页脚 */
+.rl-footer {
+  margin-top: 140px;
+  padding-top: 28px;
+  font-size: var(--rl-step-small);
+  color: var(--rl-muted);
+}
+.rl-footer p { margin: 0 0 6px; }
+.rl-footer .rl-word {
+  font-size: clamp(40px, 4.6vw, 64px);
+  line-height: 1;
+  color: var(--rl-ink);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 40px 0 24px;
+}
+
+/* ---------- 灯箱（海报 & 剧照查看器） ---------- */
+.rl-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(18, 15, 11, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+}
+.rl-lightbox.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.28s ease, visibility 0s;
+}
+.rl-lightbox img {
+  max-width: min(88vw, 1100px);
+  max-height: 88vh;
+  object-fit: contain;
+  transform: scale(0.92);
+  transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+  user-select: none;
+}
+.rl-lightbox.open img { transform: scale(1); }
+.rl-lb-close {
+  position: absolute;
+  top: 22px;
+  right: 28px;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: none;
+  color: #f2ecdf;
+  font-size: 30px;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+.rl-lb-close:hover { transform: rotate(90deg); }
+.rl-lb-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 88px;
+  border: none;
+  background: none;
+  color: rgba(242, 236, 223, 0.65);
+  font-size: 44px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.rl-lb-arrow:hover { color: #f2ecdf; }
+.rl-lb-prev { left: 12px; }
+.rl-lb-next { right: 12px; }
+.rl-lb-counter {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(242, 236, 223, 0.75);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+.rl-lb-arrow:focus-visible, .rl-lb-close:focus-visible { outline: 2px solid #f2ecdf; outline-offset: 2px; }
+
+/* ---------- solo 检查模式：自然文档流 + sticky 舞台 ---------- */
+body.rl-solo, body.rl-solo #app { height: auto; overflow: visible; }
+body.rl-solo { overflow-x: hidden; }
+body.rl-solo #scene-reellog {
+  position: static;
+  height: auto;
+  overflow: visible;
+  opacity: 1;
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 900px) {
+  .rl-layout { grid-template-columns: 1fr; }
+  .rl-stage-panel { position: relative; height: 62svh; }
+  .rl-poster-btn { inset: 12px 12px 120px 12px; }
+  .rl-poster-hint { display: none; }
+  .rl-wordmark { top: calc(62svh - 96px); left: 14px; font-size: clamp(44px, 13vw, 84px); }
+  .rl-wordmark-sub { top: calc(62svh - 24px); left: 16px; font-size: 13px; }
+  .rl-inner { padding: 20px 20px 80px; }
+  .rl-nav { margin-inline: 0; padding-inline: 0; }
+  .rl-filmstrip-wrap { margin-inline: -20px; }
+  .rl-filmstrip { padding-inline: 20px 40px; }
+  .rl-strip-hint { padding-left: 20px; }
+  .rl-ratings-field { margin-inline: -20px; padding: 56px 20px 64px; }
+  .rl-lede { min-height: 0; padding: 40px 0 8px; }
+  .rl-section { margin-top: 88px; }
+  .rl-mod-tall .rl-still-btn, .rl-mod-wide .rl-still-btn, .rl-mod-stack figure { height: 44vh; }
+}
